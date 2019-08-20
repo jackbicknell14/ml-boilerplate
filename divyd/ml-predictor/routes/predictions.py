@@ -1,11 +1,13 @@
 from flask import request, jsonify
 from models.predictions import *
 
-### Predictions routes
+# Init schema
+prediction_schema = PredictionSchema(strict=True)
+predictions_schema = PredictionSchema(many=True, strict=True)
 
 
-# Create a model
-@app.route('/model', methods=['POST'])
+# Create a prediction
+@app.route('/prediction', methods=['POST'])
 def add_model():
 	name = request.json['name']
 	params = request.json['params']
@@ -21,19 +23,19 @@ def add_model():
 	db.session.add(new_model)
 	db.session.commit()
 
-	return model_schema.jsonify(new_model)
+	return prediction_schema.jsonify(new_model)
 
 
 # Get all models
-@app.route('/model', methods=['GET'])
+@app.route('/prediction', methods=['GET'])
 def get_models():
 	all_models = PersistentModel.query.all()
-	result = models_schema.dump(all_models)
+	result = predictions_schema.dump(all_models)
 	return jsonify(result.data)
 
 
 # Get single product
-@app.route('/model/<id>', methods=['GET'])
+@app.route('/prediction/<id>', methods=['GET'])
 def get_product(id):
 	product = PersistentModel.query.get(id)
-	return model_schema.jsonify(product)
+	return prediction_schema.jsonify(product)

@@ -1,8 +1,11 @@
 from flask import request, jsonify
 from models.persistent_models import *
 
-
 ### Models routes
+# Init schema
+model_schema = PersistentModelSchema(strict=True)
+models_schema = PersistentModelSchema(many=True, strict=True)
+
 
 # Create a model
 @app.route('/model', methods=['POST'])

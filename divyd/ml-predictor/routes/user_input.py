@@ -1,11 +1,13 @@
 from flask import request, jsonify
 from models.user_input import *
 
-### User input routes
+# Init schema
+user_input_schema = UserInputSchema(strict=True)
+user_inputs_schema = UserInputSchema(many=True, strict=True)
 
 
 # Create a model
-@app.route('/model', methods=['POST'])
+@app.route('/user_input', methods=['POST'])
 def add_model():
 	name = request.json['name']
 	params = request.json['params']
@@ -25,7 +27,7 @@ def add_model():
 
 
 # Get all models
-@app.route('/model', methods=['GET'])
+@app.route('/user_input', methods=['GET'])
 def get_models():
 	all_models = PersistentModel.query.all()
 	result = models_schema.dump(all_models)
@@ -33,7 +35,7 @@ def get_models():
 
 
 # Get single product
-@app.route('/model/<id>', methods=['GET'])
+@app.route('/user_input/<id>', methods=['GET'])
 def get_product(id):
 	product = PersistentModel.query.get(id)
 	return model_schema.jsonify(product)

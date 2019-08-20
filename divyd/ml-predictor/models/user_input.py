@@ -19,7 +19,3 @@ class UserInput(db.Model):
 class UserInputSchema(ma.Schema):
 	class Meta:
 		fields = ('id', 'customer_id', 'category', 'weekday', 'day_of_month')
-
-# Init schema
-user_input_schema = UserInputSchema(strict=True)
-user_inputs_schema = UserInputSchema(many=True, strict=True)

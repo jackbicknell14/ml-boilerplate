@@ -13,7 +13,12 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 migrate = Migrate(app, db)
 
-from routes import *
-from models.persistent_models import *
-from models.predictions import *
-from models.user_input import *
+from routes.persistent_models import *
+
+from models.persistent_models import PersistentModel
+from models.predictions import Prediction
+from models.user_input import UserInput
+
+@app.shell_context_processor
+def make_shell_context():
+    return {'db': db, 'PersistentModel': PersistentModel, 'UserInput': UserInput, 'Prediction': Prediction}

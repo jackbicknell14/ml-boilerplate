@@ -18,7 +18,3 @@ class Prediction(db.Model):
 class PredictionSchema(ma.Schema):
 	class Meta:
 		fields = ('id', 'model_id', 'customer_id', 'prediction')
-
-# Init schema
-prediction_schema = PredictionSchema(strict=True)
-predictions_schema = PredictionSchema(many=True, strict=True)

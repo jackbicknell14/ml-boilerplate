@@ -15,7 +15,11 @@ class PersistentModel(db.Model):
 		self.upload_time = upload_time
 		self.in_use = in_use
 
+
 # Product schema
 class PersistentModelSchema(ma.Schema):
 	class Meta:
 		fields = ('id', 'name', 'params', 'upload_time', 'in_use')
+
+model_schema = PersistentModelSchema()
+models_schema = PersistentModelSchema(many=True)

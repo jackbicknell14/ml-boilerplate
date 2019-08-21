@@ -1,18 +1,15 @@
 from flask import request, jsonify
-from models.persistent_models import *
+from predictor import app
 
-### Models routes
-# Init schema
-model_schema = PersistentModelSchema(strict=True)
-models_schema = PersistentModelSchema(many=True, strict=True)
-
+from predictor.models.persistent_models import *
 
 # Create a model
 @app.route('/model', methods=['POST'])
 def add_model():
+	print(request.json)
+
 	name = request.json['name']
 	params = request.json['params']
-	print(request.json)
 	if 'upload_time' in request.json:
 		upload_time = request.json['upload_time']
 	else:
@@ -30,14 +27,17 @@ def add_model():
 # Get all models
 @app.route('/model', methods=['GET'])
 def get_models():
+	print('hello there')
+
 	all_models = PersistentModel.query.all()
 	result = models_schema.dump(all_models)
-	return jsonify(result.data)
+	print(result)
+	return jsonify(result)
 
 
 # Get single product
 @app.route('/model/<id>', methods=['GET'])
-def get_product(id):
+def get_model(id):
 	product = PersistentModel.query.get(id)
 	return model_schema.jsonify(product)
 
@@ -46,7 +46,7 @@ def get_product(id):
 # Update a model
 @app.route('/model/<id>', methods=['PUT'])
 def update_model(id):
-	product = PersistentModel.query.get(id)
+	model = PersistentModel.query.get(id)
 
 	name = request.json['name']
 	params = request.json['params']
@@ -62,7 +62,7 @@ def update_model(id):
 
 # Delete a model
 @app.route('/model/<id>', methods=['DELETE'])
-def delete_product(id):
+def delete_model(id):
 	model = PersistentModel.query.get(id)
 	db.session.delete(model)
 	db.session.commit()

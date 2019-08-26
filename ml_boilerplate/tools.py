@@ -3,7 +3,7 @@ import random
 
 import numpy as np
 from scipy.stats import randint, uniform
-# from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_selection import SelectKBest
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import (accuracy_score, cohen_kappa_score,
@@ -36,9 +36,14 @@ class TrainLinearReg:
 
     """
 
-    def __init__(self, X, y, x_cols):
+    def __init__(self, X, y, x_cols, binary_cols, text_cols, category_cols, numerical_cols):
         """docstring."""
         self.X, self.y, self.x_cols = X, y, x_cols
+        self.binary_cols = binary_cols
+        self.text_cols = text_cols
+        self.category_cols = category_cols
+        self.numerical_cols = numerical_cols
+
         self.pipeline = Pipeline([
             ('preprocess_pipeline', self.get_preprocess_pipeline(self.x_cols)),
             ('classifier', XGBClassifier(max_delta_step=1,
@@ -47,33 +52,40 @@ class TrainLinearReg:
                                          njobs=1))
         ])
 
-    def get_preprocess_pipeline(self):
-        """Docstring summary."""
+    def get_preprocess_pipeline(self, x_cols, numeric=True, text=True, categorical=True, boolean=True):
+        """Docstring."""
+        transformer_list = []
+
+        if numeric:
+            numeric_features = ("numeric_features", Pipeline([
+                ('selector', TypeSelector(np.number)),
+                ('imputer', SimpleImputer(strategy="median")),
+                ('scaler', StandardScaler())]))
+            transformer_list.append(numeric_features)
+
+        if text:
+            text_features = ("text_features", Pipeline([
+                ('selector', ColumnSelector(columns=self.text_cols)),
+                ('vectoriser', TfidfVectorizer(stop_words='english')),
+                ('select_features', SelectKBest())]))
+            transformer_list.append(text_features)
+
+        if categorical:
+            categorical_features = ("categorical_features", Pipeline([
+                ('selector', TypeSelector("category")),
+                ('one_hot', OneHotEncoder(categories="auto", handle_unknown='ignore')),
+                ('imputer', SimpleImputer(strategy="most_frequent")),
+                ('select_features', SelectKBest())]))
+            transformer_list.append(categorical_features)
+
+        if boolean:
+            boolean_features = ("boolean_features", Pipeline([
+                ('selector', TypeSelector("bool"))]))
+            transformer_list.append(boolean_features)
+
         return Pipeline([
-            ('select_columns', ColumnSelector(columns=self.x_cols)),
-            ('features_union', FeatureUnion(transformer_list=[
-                ("numeric_features", Pipeline([
-                    ('selector', TypeSelector(np.number)),
-                    ('imputer', SimpleImputer(strategy="median")),
-                    ('scaler', StandardScaler()),
-                ])),
-                # If there are not text columns this should be hashed out
-                # ("text_features", Pipeline([
-                #    ('selector', ColumnSelector(columns=text_columns)),
-                #    ('vectoriser', TfidfVectorizer(stop_words='english')),
-                #    ('select_features', SelectKBest()),
-                # ])),
-                ("categorical_features", Pipeline([
-                    ('selector', TypeSelector("category")),
-                    ('one_hot', OneHotEncoder(categories="auto")),
-                    ('imputer', SimpleImputer(strategy="most_frequent")),
-                    ('select_features', SelectKBest()),
-                ])),
-                ("boolean_features", Pipeline([
-                    ('selector', TypeSelector("bool"))
-                ]))
-            ]))
-        ])
+            ('select_columns', ColumnSelector(columns=x_cols)),
+            ('features_union', FeatureUnion(transformer_list=transformer_list))])
 
     def get_results(y_test, y_pred):
         """Docstring summary."""
@@ -133,24 +145,18 @@ def set_x_random_missing_vals(X):
     return X
 
 
-def get_X_and_y(df, target_column, cols_to_drop, binary_features,
-                categorical_features, text_features):
-    """
-    Doctring summary.
-
-    target_columns = uhbce
-    """
-    # Remove the target column and the phone number
+def get_X_and_y(df, target_column, cols_to_drop, binary_cols,
+                categorical_cols, text_cols, numeric_cols):
+    """Remove the target column and the phone number."""
     cols_to_drop.append(target_column)
     x_cols = [c for c in df if c not in cols_to_drop]
 
-    # Column types are defaulted to floats
-    X = df.drop([target_column], axis=1).astype(float)
+    X = df[x_cols]
 
-    X[binary_features] = X[binary_features].astype("bool")
+    X[binary_cols] = X[binary_cols].astype("bool")
+    X[categorical_cols] = X[categorical_cols].astype("category")
+    X[text_cols] = X[text_cols].astype("object")
+    X[numeric_cols] = X[numeric_cols].astype("float64")
 
-    # Categorical features can't be set all at once
-    for f in categorical_features:
-        X[f] = X[f].astype("category")
     y = df[target_column]
     return X, y, x_cols

@@ -2,24 +2,20 @@
 import random
 
 import numpy as np
-from scipy.stats import randint, uniform
+# from sklearn.linear_model import LinearRegression
+from transformers import ColumnSelector, TypeSelector
+from scipy.stats import uniform
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_selection import SelectKBest
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import (accuracy_score, cohen_kappa_score,
-                             confusion_matrix, f1_score, log_loss,
-                             precision_score, recall_score, roc_auc_score)
-from sklearn.model_selection import (RandomizedSearchCV, cross_val_predict,
-                                     cross_val_score, train_test_split)
+
+from sklearn.model_selection import (RandomizedSearchCV, cross_val_predict, train_test_split)
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from xgboost import XGBClassifier
-
-# from sklearn.linear_model import LinearRegression
-from .transformers import ColumnSelector, TypeSelector
+from xgboost import XGBRegressor
 
 
-class TrainLinearReg:
+class XGBLinearReg:
     """
     A short description.
 
@@ -44,13 +40,47 @@ class TrainLinearReg:
         self.category_cols = category_cols
         self.numerical_cols = numerical_cols
 
+        if binary_cols:
+            boolean = True
+        else:
+            boolean = False
+
+        if text_cols:
+            text = True
+        else:
+            text = False
+
+        if category_cols:
+            category = True
+        else:
+            category = False
+
+        if numerical_cols:
+            number = True
+        else:
+            number = False
+
         self.pipeline = Pipeline([
-            ('preprocess_pipeline', self.get_preprocess_pipeline(self.x_cols)),
-            ('classifier', XGBClassifier(max_delta_step=1,
-                                         objective='binary:logistic',
-                                         booster='gbtree',
-                                         njobs=1))
+            ('preprocess_pipeline', self.get_preprocess_pipeline(self.x_cols,
+                                                                 numeric=number,
+                                                                 text=text,
+                                                                 categorical=category,
+                                                                 boolean=boolean)),
+            ('classifier', XGBRegressor(max_delta_step=1,
+                                        objective='reg:squarederror',
+                                        booster='gbtree',
+                                        njobs=1))
         ])
+
+        self.linreg_param_grid = {
+            "classifier__max_depth": [i for i in range(1, 15)],
+            "classifier__gamma": [0.1 * x for x in range(1, 6)],
+            "classifier__min_child_weight": [i for i in range(0, 5)],
+            "classifier__subsample": [i/10.0 for i in range(6, 11)],
+            "classifier__colsample_bytree": uniform(),
+            "preprocess_pipeline__features_union__categorical_features__select_features__k":
+                [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'all'],
+            }
 
     def get_preprocess_pipeline(self, x_cols, numeric=True, text=True, categorical=True, boolean=True):
         """Docstring."""
@@ -87,50 +117,25 @@ class TrainLinearReg:
             ('select_columns', ColumnSelector(columns=x_cols)),
             ('features_union', FeatureUnion(transformer_list=transformer_list))])
 
-    def get_results(y_test, y_pred):
-        """Docstring summary."""
-        print(f'f1 score of {np.round(f1_score(y_test, y_pred),3)}')
-        print(f'recall score of {np.round(recall_score(y_test, y_pred),3)}')
-        print(
-            f'kappa score of {np.round(cohen_kappa_score(y_test, y_pred),3)}')
-        print(
-            f'precision score of {np.round(precision_score(y_test, y_pred),3)}')
-        print(
-            f'accuracy score of {np.round(accuracy_score(y_test, y_pred),3)}')
-        print(f'roc_auc score of {np.round(roc_auc_score(y_test, y_pred),3)}')
-        print(f'logloss score of {np.round(log_loss(y_test, y_pred),3)}')
-        confus_mat = confusion_matrix(y_test, y_pred)
-        print(confus_mat)
-
     def train_model(self):
         """Docstring summary."""
         # Partition data set into training/test split (2 to 1 ratio)
         X_train, X_test, y_train, y_test = train_test_split(
-            self.X, self.y, test_size=1 / 3., random_state=42)
+            self.X, self.y, test_size=1 / 3, random_state=42)
         clf = RandomizedSearchCV(
-            self.pipeline, self.linreg_param_grid(), cv=5)
+            self.pipeline, self.linreg_param_grid, cv=5)
         clf.fit(X_train, y_train)
         params = clf.best_params_
-        y_pred = cross_val_predict(clf.set_params(**params).fit(X_train, y_train),
+        y_pred = cross_val_predict(self.pipeline.set_params(**params).fit(X_train, y_train),
                                    X_test, y_test, cv=5)
         self.get_results(y_test, y_pred)
-        scores = cross_val_score(clf.set_params(
-            **params), X_test, y_test, cv=3, scoring='f1')
-        print(scores)
-        print(scores.mean())
 
-    def linreg_param_grid():
+    def get_results(self, y_test, y_pred):
         """Docstring summary."""
-        return {
-            "classifier__max_depth": [i for i in range(1, 15)],
-            "classifier__gamma": [0.1 * x for x in range(1, 6)],
-            "classifier__n_estimators": randint(1, 1000),
-            "classifier__learning_rate": uniform(),
-            "classifier__subsample": uniform(),
-            "classifier__colsample_bytree": uniform(),
-            "preprocess_pipeline__features_union__categorical_features__select_features__k":
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 25, 50, 'all'],
-        }
+        from sklearn import metrics
+        print('MAE:', metrics.mean_absolute_error(y_test, y_pred))
+        print('MSE:', metrics.mean_squared_error(y_test, y_pred))
+        print('RMSE:', np.sqrt(metrics.mean_squared_error(y_test, y_pred)))
 
 
 def set_x_random_missing_vals(X):

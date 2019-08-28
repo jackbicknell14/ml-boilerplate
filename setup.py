@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='ml_boilerplate',
-    version='0.1',
+    version='0.32',
     author="Jack Bicknell",
     author_email="jakbicknell@gmail.com",
     description="A collection of useful tools for machine learning.",
